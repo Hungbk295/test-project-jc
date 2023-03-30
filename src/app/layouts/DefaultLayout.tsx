@@ -15,8 +15,10 @@ export default function DefaultLayout(props: DefaultLayoutProps) {
     <Layout className="min-h-screen">
       <Sidebar />
       <Layout>
-        <Content className="bg-white px-2 pb-2">{children}</Content>
-        <Footer className="text-center">Copyright {currentYear} TIDESQUARE CORPORATION. All rights reserved.</Footer>
+        <Content className="#cbd5e1 px-2 pb-2 flex flex-col">{children}</Content>
+        <Footer className="bg-white text-center py-[13px]">
+          Copyright {currentYear} TIDESQUARE CORPORATION. All rights reserved.
+        </Footer>
       </Layout>
     </Layout>
   );

@@ -6,6 +6,7 @@ import URL from 'constants/url';
 import { lazy, ReactElement, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAppSelector } from 'store';
+import Test from 'app/pages/Test';
 
 const DEFAULT_LAYOUT = 'default';
 const NONE_LAYOUT = 'none';
@@ -19,14 +20,7 @@ interface ItemType {
   private: boolean;
 }
 
-const userItems: ItemType[] = [
-  {
-    key: URL.Home,
-    components: <Home />,
-    layout: DEFAULT_LAYOUT,
-    private: true,
-  },
-];
+const userItems: ItemType[] = [];
 
 const adminItems: ItemType[] = [
   {
@@ -41,6 +35,12 @@ const sharedItems: ItemType[] = [
   {
     key: URL.Login,
     components: <Login />,
+    layout: NONE_LAYOUT,
+    private: false,
+  },
+  {
+    key: URL.Test,
+    components: <Test />,
     layout: NONE_LAYOUT,
     private: false,
   },

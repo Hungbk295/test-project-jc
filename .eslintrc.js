@@ -24,7 +24,7 @@ module.exports = {
     'react/jsx-filename-extension': ['error', { extensions: ['.ts', '.tsx'] }],
     'prettier/prettier': 'warn',
     'no-undef': 'off',
-    '@typescript-eslint/no-explicit-any': 'error',
+    '@typescript-eslint/no-explicit-any': 1,
     'react-hooks/rules-of-hooks': 'error',
     'react-hooks/exhaustive-deps': 'error',
     'no-param-reassign': ['error', { props: true, ignorePropertyModificationsFor: ['state'] }],
@@ -33,5 +33,6 @@ module.exports = {
     'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     camelcase: 'off',
     'react/no-array-index-key': 'off',
+    'react/no-unstable-nested-components': 0,
   },
 };
