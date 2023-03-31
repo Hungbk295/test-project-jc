@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import {Button, Form, Input, InputNumber, Space, Table, Upload, Typography, Popconfirm, Select} from 'antd';
+import { Button, Form, Input, InputNumber, Space, Table, Upload, Typography, Popconfirm, Select } from 'antd';
 import * as yaml from 'js-yaml';
 import { UploadOutlined } from '@ant-design/icons';
-import * as fs from "fs";
 
 interface IItem {
   key: string;
@@ -22,15 +21,13 @@ const options = [
   { label: 'get', value: 'get' },
   { label: 'click', value: 'click' },
   { label: 'scroll', value: 'scroll' },
+  { label: 'use_key', value: 'use_key' },
 ];
 // eslint-disable-next-line react/function-component-definition
 const EditableCell: React.FC<EditableCellProps> = ({
   editing,
   dataIndex,
-  title,
   inputType,
-  record,
-  index,
   children,
   ...restProps
 }) => {
@@ -40,11 +37,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
     // eslint-disable-next-line react/jsx-props-no-spreading
     <td {...restProps}>
       {editing ? (
-        <Form.Item
-          name={dataIndex}
-          style={{ margin: 0 }}
-
-        >
+        <Form.Item name={dataIndex} style={{ margin: 0 }}>
           {inputNode}
         </Form.Item>
       ) : (
@@ -55,9 +48,9 @@ const EditableCell: React.FC<EditableCellProps> = ({
 };
 function Index() {
   const [form] = Form.useForm();
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<IItem[]>([]);
   const [editingKey, setEditingKey] = useState('');
-
+  let urlFile = '';
   const isEditing = (record: IItem) => record.key === editingKey;
   const getStepsInfo = (testInfo: any) => {
     const { steps } = testInfo;
@@ -79,15 +72,15 @@ function Index() {
     const reader = new FileReader();
     reader.onload = (e: any) => {
       try {
+        urlFile = e.target;
         const test = yaml.load(e.target.result);
         let counter = 0;
         const testData = getStepsInfo(test).map((item: any) => {
           counter += 1;
-          return { ...item, key: counter };
+          return { ...item, key: counter.toString() };
         });
 
         setData(testData);
-        console.log(testData);
       } catch (err) {
         console.log(err);
       }
@@ -96,16 +89,21 @@ function Index() {
     return false;
   };
 
-  const edit = (record: Partial<IItem> & { key: React.Key }) => {
+  const editRow = (record: Partial<IItem> & { key: React.Key }) => {
     form.setFieldsValue({ action: '', param: '', ...record });
     setEditingKey(record.key);
+  };
+
+  const deleteRow = (record: Partial<IItem> & { key: React.Key }) => {
+    const newData = data.filter((item: any) => item.key !== record.key);
+    setData(newData);
   };
 
   const cancel = () => {
     setEditingKey('');
   };
 
-  const save = async (key: React.Key) => {
+  const saveRow = async (key: React.Key) => {
     try {
       const row = (await form.validateFields()) as IItem;
 
@@ -120,8 +118,7 @@ function Index() {
           ...row,
         });
         setData(newData);
-        console.log('data new' , data)
-
+        console.log('newData', newData);
         setEditingKey('');
       } else {
         // @ts-ignore
@@ -130,19 +127,22 @@ function Index() {
         setEditingKey('');
       }
     } catch (errInfo) {
-      console.log('Validate Failed:', errInfo);
+      console.log(errInfo);
     }
   };
   const columns = [
     {
       title: 'Step',
-      dataIndex: 'key'
+      dataIndex: 'key',
     },
     {
       title: 'Action',
       dataIndex: 'action',
       width: '25%',
-      render: (text: any) => <Select options={options} value={text} >{text}</Select>,
+      render: (text: any, record: IItem) => {
+        const editable = isEditing(record);
+        return !editable ? <div>{ text }</div> : <Select className="w-[100px]" options={options} defaultValue={text} />;
+      },
       editable: true,
     },
     {
@@ -158,18 +158,21 @@ function Index() {
       render: (_: any, record: IItem) => {
         const editable = isEditing(record);
         return editable ? (
-          <span>
-            <Typography.Link onClick={() => save(record.key)} style={{ marginRight: 8 }}>
-              Save
-            </Typography.Link>
+          <div className="flex gap-8">
+            <Typography.Link onClick={() => saveRow(record.key)}>Save</Typography.Link>
             <Popconfirm title="Sure to cancel?" onConfirm={cancel}>
-              <p>Cancel</p>
+              <Typography.Link>Cancel</Typography.Link>
             </Popconfirm>
-          </span>
+          </div>
         ) : (
-          <Typography.Link disabled={editingKey !== ''} onClick={() => edit(record)}>
-            Edit
-          </Typography.Link>
+          <div className="flex gap-8">
+            <Typography.Link disabled={editingKey !== ''} onClick={() => editRow(record)}>
+              Edit
+            </Typography.Link>
+            <Typography.Link type="danger" disabled={editingKey !== ''} onClick={() => deleteRow(record)}>
+              Delete
+            </Typography.Link>
+          </div>
         );
       },
     },
@@ -189,27 +192,38 @@ function Index() {
       }),
     };
   });
-
-  const onSaveDumpData = () => yaml.dump(data, {
-      noRefs: true
-    })
+  // eslint-disable-next-line global-require
+  const fs = require('fs').promises;
+  const onSaveDumpData = async () => {
+    const saveFile = yaml.dump(data, {});
+    await fs.writeFile('./', saveFile, 'utf8');
+  };
   function handleAddRow() {
     const nextRow = {
       key: (data.length + 1).toString(),
       action: '',
       param: '',
     };
-    // @ts-ignore
+    // setEditingKey((data.length + 1).toString());
     setData([...data, nextRow]);
-    setEditingKey((data.length + 1).toString())
-    console.log('editingKey',editingKey)
   }
   const titleRow = () => (
-      <div className='flex gap-8'>
-        <Button type='primary' onClick={()=> {onSaveDumpData()}}> Save </Button>
-        <Button type= 'primary' onClick={handleAddRow} > Add Step </Button>
-      </div>
-  )
+    <div className="flex gap-4">
+      <Button
+        type="primary"
+        onClick={() => {
+          onSaveDumpData();
+        }}
+      >
+        {' '}
+        Save{' '}
+      </Button>
+      <Button type="primary" onClick={handleAddRow}>
+        {' '}
+        Add Step{' '}
+      </Button>
+    </div>
+  );
   return (
     <Space className="space-header m-5" direction="vertical" style={{ display: 'flex' }}>
       <Upload accept=".yaml" showUploadList={false} beforeUpload={beforeUpload}>
@@ -219,25 +233,25 @@ function Index() {
       </Upload>
       <Form form={form} component={false}>
         <Table
-            rowKey="index"
-            title={titleRow}
-            components={{
-              body: {
-                cell: EditableCell,
-              },
-            }}
-            bordered
-            dataSource={data}
-            columns={mergedColumns}
-            rowClassName="editable-row"
-            pagination={{
-              onChange: cancel, pageSize:20
-            }}
+          rowKey="index"
+          title={titleRow}
+          components={{
+            body: {
+              cell: EditableCell,
+            },
+          }}
+          bordered
+          dataSource={data}
+          columns={mergedColumns}
+          rowClassName="editable-row"
+          pagination={{
+            onChange: cancel,
+            pageSize: 20,
+          }}
         />
       </Form>
     </Space>
   );
-
 }
 
 export default Index;

@@ -87,5 +87,10 @@
   },
   "devDependencies": {
 
+  },
+  "browser": {
+    "fs": false,
+    "path": false,
+    "os": false
   }
 }
