@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {Button, Form, Input, InputNumber, Space, Table, Upload, Typography, Popconfirm, Select} from 'antd';
 import * as yaml from 'js-yaml';
 import { UploadOutlined } from '@ant-design/icons';
-import { ColumnsType } from 'antd/es/table';
+import * as fs from "fs";
 
 interface IItem {
   key: string;
@@ -19,10 +19,10 @@ interface EditableCellProps extends React.HTMLAttributes<HTMLElement> {
   children: React.ReactNode;
 }
 const options = [
-      { label: 'get', value: 'get' },
-      { label: 'click', value: 'click' },
-      { label: 'scroll', value: 'scroll' },
-    ];
+  { label: 'get', value: 'get' },
+  { label: 'click', value: 'click' },
+  { label: 'scroll', value: 'scroll' },
+];
 // eslint-disable-next-line react/function-component-definition
 const EditableCell: React.FC<EditableCellProps> = ({
   editing,
@@ -53,22 +53,12 @@ const EditableCell: React.FC<EditableCellProps> = ({
     </td>
   );
 };
-
 function Index() {
   const [form] = Form.useForm();
   const [data, setData] = useState([]);
   const [editingKey, setEditingKey] = useState('');
 
   const isEditing = (record: IItem) => record.key === editingKey;
-
-  const edit = (record: Partial<IItem> & { key: React.Key }) => {
-    form.setFieldsValue({ action: '', param: '', ...record });
-    setEditingKey(record.key);
-  };
-
-  const cancel = () => {
-    setEditingKey('');
-  };
   const getStepsInfo = (testInfo: any) => {
     const { steps } = testInfo;
     return steps.map((step: any) => {
@@ -106,6 +96,15 @@ function Index() {
     return false;
   };
 
+  const edit = (record: Partial<IItem> & { key: React.Key }) => {
+    form.setFieldsValue({ action: '', param: '', ...record });
+    setEditingKey(record.key);
+  };
+
+  const cancel = () => {
+    setEditingKey('');
+  };
+
   const save = async (key: React.Key) => {
     try {
       const row = (await form.validateFields()) as IItem;
@@ -121,6 +120,8 @@ function Index() {
           ...row,
         });
         setData(newData);
+        console.log('data new' , data)
+
         setEditingKey('');
       } else {
         // @ts-ignore
@@ -133,6 +134,10 @@ function Index() {
     }
   };
   const columns = [
+    {
+      title: 'Step',
+      dataIndex: 'key'
+    },
     {
       title: 'Action',
       dataIndex: 'action',
@@ -185,12 +190,26 @@ function Index() {
     };
   });
 
+  const onSaveDumpData = () => yaml.dump(data, {
+      noRefs: true
+    })
+  function handleAddRow() {
+    const nextRow = {
+      key: (data.length + 1).toString(),
+      action: '',
+      param: '',
+    };
+    // @ts-ignore
+    setData([...data, nextRow]);
+    setEditingKey((data.length + 1).toString())
+    console.log('editingKey',editingKey)
+  }
   const titleRow = () => (
-    <div className='flex gap-8'>
-      <Button type='primary' onClick={()=> yaml.dump(data,)}> Save </Button>
-      <Button type = 'primary'> Add Step </Button>
-    </div>
-)
+      <div className='flex gap-8'>
+        <Button type='primary' onClick={()=> {onSaveDumpData()}}> Save </Button>
+        <Button type= 'primary' onClick={handleAddRow} > Add Step </Button>
+      </div>
+  )
   return (
     <Space className="space-header m-5" direction="vertical" style={{ display: 'flex' }}>
       <Upload accept=".yaml" showUploadList={false} beforeUpload={beforeUpload}>
@@ -202,22 +221,23 @@ function Index() {
         <Table
             rowKey="index"
             title={titleRow}
-          components={{
-            body: {
-              cell: EditableCell,
-            },
-          }}
-          bordered
-          dataSource={data}
-          columns={mergedColumns}
-          rowClassName="editable-row"
-          pagination={{
-            onChange: cancel,
-          }}
+            components={{
+              body: {
+                cell: EditableCell,
+              },
+            }}
+            bordered
+            dataSource={data}
+            columns={mergedColumns}
+            rowClassName="editable-row"
+            pagination={{
+              onChange: cancel, pageSize:20
+            }}
         />
       </Form>
     </Space>
   );
+
 }
 
 export default Index;
