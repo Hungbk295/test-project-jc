@@ -3,6 +3,8 @@ import { Button, Form, Input, InputNumber, Space, Table, Upload, Typography, Pop
 import * as yaml from 'js-yaml';
 import { UploadOutlined } from '@ant-design/icons';
 
+const fs = require('fs').promises;
+
 interface IItem {
   key: string;
   action: string;
@@ -12,7 +14,7 @@ interface EditableCellProps extends React.HTMLAttributes<HTMLElement> {
   editing: boolean;
   dataIndex: string;
   title: any;
-  inputType: 'number' | 'text';
+  inputType: 'select' | 'text';
   record: IItem;
   index: number;
   children: React.ReactNode;
@@ -24,14 +26,9 @@ const options = [
   { label: 'use_key', value: 'use_key' },
 ];
 // eslint-disable-next-line react/function-component-definition
-const EditableCell: React.FC<EditableCellProps> = ({
-  editing,
-  dataIndex,
-  inputType,
-  children,
-  ...restProps
-}) => {
-  const inputNode = inputType === 'number' ? <InputNumber /> : <Input />;
+const EditableCell: React.FC<EditableCellProps> = ({ editing, dataIndex, inputType, children, ...restProps }) => {
+  const inputNode =
+    inputType === 'select' ? <Select className="select_action w-[100px]" options={options} /> : <Input />;
 
   return (
     // eslint-disable-next-line react/jsx-props-no-spreading
@@ -49,8 +46,8 @@ const EditableCell: React.FC<EditableCellProps> = ({
 function Index() {
   const [form] = Form.useForm();
   const [data, setData] = useState<IItem[]>([]);
+  const [testData1, setTestData1] = useState();
   const [editingKey, setEditingKey] = useState('');
-  let urlFile = '';
   const isEditing = (record: IItem) => record.key === editingKey;
   const getStepsInfo = (testInfo: any) => {
     const { steps } = testInfo;
@@ -68,19 +65,25 @@ function Index() {
       };
     });
   };
-  const beforeUpload = (file: any) => {
+
+  const beforeUpload = (file: any, actionWithFile: string) => {
     const reader = new FileReader();
     reader.onload = (e: any) => {
       try {
-        urlFile = e.target;
-        const test = yaml.load(e.target.result);
-        let counter = 0;
-        const testData = getStepsInfo(test).map((item: any) => {
-          counter += 1;
-          return { ...item, key: counter.toString() };
-        });
-
-        setData(testData);
+        const fileTarget = e.target.result;
+        if (actionWithFile === 'load') {
+          const test = yaml.load(fileTarget) as any;
+          setTestData1(test);
+          let counter = 0;
+          const testData = getStepsInfo(test).map((item: any) => {
+            counter += 1;
+            return { ...item, key: counter.toString() };
+          });
+          setData(testData);
+        } else if (actionWithFile === 'save') {
+          const test = yaml.dump(testData1);
+          fs.writeFileSync(fileTarget, test);
+        }
       } catch (err) {
         console.log(err);
       }
@@ -111,17 +114,13 @@ function Index() {
       const index = newData.findIndex((item: any) => key === item.key);
       if (index > -1) {
         const item = newData[index];
-        // @ts-ignore
         newData.splice(index, 1, {
-          // @ts-ignore
           ...item,
           ...row,
         });
         setData(newData);
-        console.log('newData', newData);
         setEditingKey('');
       } else {
-        // @ts-ignore
         newData.push(row);
         setData(newData);
         setEditingKey('');
@@ -130,6 +129,26 @@ function Index() {
       console.log(errInfo);
     }
   };
+  const average = (a: string, b: string) => (parseInt(a, 10) + parseInt(b, 10)) / 2;
+  const sortData = (dataSort: IItem[]) => {
+    const newDataSort = dataSort.sort((a, b) => parseInt(a.key, 10) - parseInt(b.key, 10));
+    newDataSort.map((item, index) => ( {...item, key: index+1}));
+    console.log(newDataSort)
+    return newDataSort
+  }
+  function handleAddRow(record: IItem) {
+    const temp = data.find((element) => element.key > record.key) as any;
+    console.log(temp.key);
+    const nextRow = {
+      key: average(record.key, temp.key).toString(),
+      action: '',
+      param: '',
+    };
+    // setEditingKey((data.length + 1).toString());
+    const newDataAddRow = [...data, nextRow];
+
+    setData(sortData(newDataAddRow));
+  }
   const columns = [
     {
       title: 'Step',
@@ -139,10 +158,7 @@ function Index() {
       title: 'Action',
       dataIndex: 'action',
       width: '25%',
-      render: (text: any, record: IItem) => {
-        const editable = isEditing(record);
-        return !editable ? <div>{ text }</div> : <Select className="w-[100px]" options={options} defaultValue={text} />;
-      },
+      render: (text: any) => <div> {text}</div>,
       editable: true,
     },
     {
@@ -172,6 +188,9 @@ function Index() {
             <Typography.Link type="danger" disabled={editingKey !== ''} onClick={() => deleteRow(record)}>
               Delete
             </Typography.Link>
+            <Typography.Link type="danger" disabled={editingKey !== ''} onClick={() => handleAddRow(record)}>
+              Add Step
+            </Typography.Link>
           </div>
         );
       },
@@ -185,48 +204,30 @@ function Index() {
       ...col,
       onCell: (record: IItem) => ({
         record,
-        inputType: col.dataIndex === 'action' ? 'param' : 'text',
+        inputType: col.dataIndex === 'action' ? 'select' : 'text',
         dataIndex: col.dataIndex,
         title: col.title,
         editing: isEditing(record),
       }),
     };
   });
-  // eslint-disable-next-line global-require
-  const fs = require('fs').promises;
-  const onSaveDumpData = async () => {
-    const saveFile = yaml.dump(data, {});
-    await fs.writeFile('./', saveFile, 'utf8');
-  };
-  function handleAddRow() {
-    const nextRow = {
-      key: (data.length + 1).toString(),
-      action: '',
-      param: '',
-    };
-    // setEditingKey((data.length + 1).toString());
-    setData([...data, nextRow]);
-  }
+
   const titleRow = () => (
     <div className="flex gap-4">
       <Button
         type="primary"
-        onClick={() => {
-          onSaveDumpData();
+        onClick={(file) => {
+          beforeUpload(file, 'save');
         }}
       >
-        {' '}
-        Save{' '}
+        Save
       </Button>
-      <Button type="primary" onClick={handleAddRow}>
-        {' '}
-        Add Step{' '}
-      </Button>
+      <Button type="primary">Add Step</Button>
     </div>
   );
   return (
     <Space className="space-header m-5" direction="vertical" style={{ display: 'flex' }}>
-      <Upload accept=".yaml" showUploadList={false} beforeUpload={beforeUpload}>
+      <Upload accept=".yaml" showUploadList={false} beforeUpload={(file) => beforeUpload(file, 'load')}>
         <Button>
           <UploadOutlined /> Click to Upload
         </Button>
