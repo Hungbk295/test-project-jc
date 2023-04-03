@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { Button, Form, Input, InputNumber, Space, Table, Upload, Typography, Popconfirm, Select } from 'antd';
 import * as yaml from 'js-yaml';
 import { UploadOutlined } from '@ant-design/icons';
-
-const fs = require('fs').promises;
+import fs from 'fs';
 
 interface IItem {
   key: string;
@@ -46,7 +45,6 @@ const EditableCell: React.FC<EditableCellProps> = ({ editing, dataIndex, inputTy
 function Index() {
   const [form] = Form.useForm();
   const [data, setData] = useState<IItem[]>([]);
-  const [testData1, setTestData1] = useState();
   const [editingKey, setEditingKey] = useState('');
   const isEditing = (record: IItem) => record.key === editingKey;
   const getStepsInfo = (testInfo: any) => {
@@ -71,18 +69,23 @@ function Index() {
     reader.onload = (e: any) => {
       try {
         const fileTarget = e.target.result;
+        console.log(fs)
         if (actionWithFile === 'load') {
           const test = yaml.load(fileTarget) as any;
-          setTestData1(test);
+          console.log('1',test)
           let counter = 0;
-          const testData = getStepsInfo(test).map((item: any) => {
+          const testData = test.steps.map((item: any) => {
             counter += 1;
             return { ...item, key: counter.toString() };
+
           });
+          const newTest = {...test, steps: testData}
+          const testSave = yaml.dump(newTest)
+          fs.writeFileSync(e.target.path, testSave)
+          console.log('2',newTest)
           setData(testData);
         } else if (actionWithFile === 'save') {
-          const test = yaml.dump(testData1);
-          fs.writeFileSync(fileTarget, test);
+          console.log(111)
         }
       } catch (err) {
         console.log(err);
@@ -129,24 +132,31 @@ function Index() {
       console.log(errInfo);
     }
   };
-  const average = (a: string, b: string) => (parseInt(a, 10) + parseInt(b, 10)) / 2;
+  const average = (a: string, b: string) => (parseFloat(a) + parseFloat(b)) / 2;
   const sortData = (dataSort: IItem[]) => {
-    const newDataSort = dataSort.sort((a, b) => parseInt(a.key, 10) - parseInt(b.key, 10));
-    newDataSort.map((item, index) => ( {...item, key: index+1}));
-    console.log(newDataSort)
-    return newDataSort
+    const newDataSort = dataSort.sort((a, b) => parseFloat(a.key) - parseFloat(b.key));
+    return newDataSort.map((item, index) => ( {...item, key: (index+1).toString()}));
   }
   function handleAddRow(record: IItem) {
-    const temp = data.find((element) => element.key > record.key) as any;
-    console.log(temp.key);
-    const nextRow = {
-      key: average(record.key, temp.key).toString(),
-      action: '',
-      param: '',
-    };
+    const nextKey = data.find((element) => element.key > record.key) as any;
+    let nextRow: IItem
+    if(nextKey){
+       nextRow = {
+        key: average(record.key, nextKey.key).toString(),
+        action: '',
+        param: '',
+      };
+    } else {
+       nextRow = {
+        key: (parseFloat(record.key) + 1).toString(),
+        action: '',
+        param: '',
+      };
+    }
+
+
     // setEditingKey((data.length + 1).toString());
     const newDataAddRow = [...data, nextRow];
-
     setData(sortData(newDataAddRow));
   }
   const columns = [
@@ -174,21 +184,23 @@ function Index() {
       render: (_: any, record: IItem) => {
         const editable = isEditing(record);
         return editable ? (
-          <div className="flex gap-8">
+          <div className="flex gap-8 ml-4">
             <Typography.Link onClick={() => saveRow(record.key)}>Save</Typography.Link>
             <Popconfirm title="Sure to cancel?" onConfirm={cancel}>
               <Typography.Link>Cancel</Typography.Link>
             </Popconfirm>
           </div>
         ) : (
-          <div className="flex gap-8">
+          <div className="flex justify-between mr-4 ml-4">
+            <div className=' flex gap-8'>
             <Typography.Link disabled={editingKey !== ''} onClick={() => editRow(record)}>
               Edit
             </Typography.Link>
             <Typography.Link type="danger" disabled={editingKey !== ''} onClick={() => deleteRow(record)}>
               Delete
             </Typography.Link>
-            <Typography.Link type="danger" disabled={editingKey !== ''} onClick={() => handleAddRow(record)}>
+            </div>
+            <Typography.Link disabled={editingKey !== ''} onClick={() => handleAddRow(record)}>
               Add Step
             </Typography.Link>
           </div>
@@ -213,7 +225,7 @@ function Index() {
   });
 
   const titleRow = () => (
-    <div className="flex gap-4">
+    <div className="flex gap-4 ">
       <Button
         type="primary"
         onClick={(file) => {
@@ -222,7 +234,7 @@ function Index() {
       >
         Save
       </Button>
-      <Button type="primary">Add Step</Button>
+      <Button type="primary">Create New</Button>
     </div>
   );
   return (
